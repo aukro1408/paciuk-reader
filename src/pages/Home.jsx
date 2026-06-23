@@ -7,21 +7,36 @@ const books = [
   {
     cover:'https://covers.openlibrary.org/b/id/8259296-M.jpg',
     title:'Мизери',
-    author:'Стивен Кинг'
+    author:'Стивен Кинг',
+    description:'Знаменитый роман Стивена Кинга о писателе, который попадает в плен к своей обезумевшей поклоннице. Заставит ли она его воскресить любимую героиню или уничтожит автора вместе с ней? Мрак, безумие и безграничная власть одержимости.',
+    rating:'4.6',
+    pages:'398',
+    language:'Russian',
+    progress:42
   },
   {
     cover:'https://covers.openlibrary.org/b/id/12947486-M.jpg',
     title:'Мастер и Маргарита',
-    author:'Михаил Булгаков'
+    author:'Михаил Булгаков',
+    description:'В Москву 1930-х годов прибывает загадочный иностранец — Воланд, который оказывается самим дьяволом. Вместе со своей свитой он устраивает череду невероятных событий, обнажая человеческие пороки и переплетая судьбы москвичей с трагической историей Мастера и его возлюбленной Маргариты.',
+    rating:'4.8',
+    pages:'480',
+    language:'Russian',
+    progress:42
   },
   {
     cover:'https://covers.openlibrary.org/b/id/240726-M.jpg',
     title:'1984',
-    author:'George Orwell'
+    author:'George Orwell',
+    description:'Роман-антиутопия Джорджа Оруэлла, рисующий тоталитарное общество будущего, где Большой Брат следит за каждым шагом граждан. Главный герой Уинстон Смит пытается сохранить человеческое достоинство и любовь в мире, где мыслепреступление карается смертью.',
+    rating:'4.7',
+    pages:'328',
+    language:'English',
+    progress:42
   }
 ]
 
-export default function Home() {
+export default function Home({ onBookClick }) {
   return (
     <div className="home-page">
 
@@ -110,6 +125,8 @@ export default function Home() {
             cover={book.cover}
             title={book.title}
             author={book.author}
+            progress={book.progress}
+            onClick={() => onBookClick(book)}
           />
         ))}
 

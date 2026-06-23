@@ -1,8 +1,8 @@
 import '../styles/bookcard.css'
 
-export default function BookCard({ cover, title, author, progress }) {
+export default function BookCard({ cover, title, author, progress, onClick }) {
   return (
-    <div className="book-card">
+    <div className="book-card" onClick={onClick}>
 
       <div className="book-card-cover">
         <img
