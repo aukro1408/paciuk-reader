@@ -1,4 +1,5 @@
 .book-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -32,10 +33,26 @@
   object-fit: cover;
 }
 
+.book-card-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-card-placeholder-text {
+  font-size: 48px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.6);
+}
+
 .book-card-info {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding-right: 28px;
 }
 
 .book-card-title {
@@ -59,13 +76,11 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-
   background:
     conic-gradient(
       #3D8BFF 42%,
       rgba(255,255,255,0.65) 42%
     );
-
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,4 +97,164 @@
   color: white;
   font-size: 8px;
   font-weight: 600;
+}
+
+/* 3-dot menu button — anchored to card, outside cover */
+.book-card-menu-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.85);
+  color: #1C1C1E;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  transition: opacity 0.15s ease;
+}
+
+.book-card-menu-btn:active {
+  opacity: 0.6;
+}
+
+/* Popup menu — fixed positioning to avoid any parent clipping */
+.book-card-menu-popup {
+  position: fixed;
+  width: 160px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 1050;
+  overflow: hidden;
+  animation: menuFadeIn 0.2s ease;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.book-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #1C1C1E;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.book-card-menu-item:active {
+  background: #F2F2F7;
+}
+
+.book-card-menu-item-danger {
+  color: #FF3B30;
+}
+
+.book-card-menu-divider {
+  height: 1px;
+  background: #E5E5EA;
+  margin: 0 12px;
+}
+
+.book-card-menu-icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+}
+
+/* Confirmation modal */
+.book-card-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: overlayFadeIn 0.15s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.book-card-confirm-dialog {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 28px 20px;
+  width: 280px;
+  max-width: 85vw;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  animation: dialogSlideIn 0.2s ease;
+}
+
+@keyframes dialogSlideIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.book-card-confirm-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1C1C1E;
+  margin-bottom: 8px;
+}
+
+.book-card-confirm-text {
+  font-size: 13px;
+  color: #636366;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.book-card-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.book-card-confirm-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.book-card-confirm-btn:active {
+  opacity: 0.7;
+}
+
+.book-card-confirm-cancel {
+  background: #F2F2F7;
+  color: #1C1C1E;
+}
+
+.book-card-confirm-delete {
+  background: linear-gradient(90deg, #3fa9f5, #3d7eff);
+  color: #fff;
 }

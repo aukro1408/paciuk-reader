@@ -1,14 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Heart } from 'lucide-react'
 import '../styles/bookdetail.css'
 
-export default function BookDetail({ book, onBack }) {
+function getReadingProgress(book) {
+  try {
+    const rp = JSON.parse(localStorage.getItem('readingProgress') || '{}')
+    return rp[`${book.title}::${book.author}`] || null
+  } catch { return null }
+}
+
+export default function BookDetail({ book, onBack, onRead }) {
   const [isFav, setIsFav] = useState(false)
 
+  // Load reading progress (overrides book defaults)
+  const rp = getReadingProgress(book)
+  const [started, setStarted] = useState(rp ? rp.isStarted : (book.isStarted || false))
+  const [progressPct, setProgressPct] = useState(rp ? rp.percentage : (book.progress || 0))
+
   const coverUrl = book.cover?.replace('-M', '-L') || book.cover
-  console.log("BOOK COVER:", book.cover)
-  console.log("FINAL COVER URL:", coverUrl)
-  const pct = book.progress || 42
+
+  useEffect(() => {
+    const rp = getReadingProgress(book)
+    if (rp) {
+      setStarted(rp.isStarted)
+      setProgressPct(rp.percentage)
+    }
+  }, [book])
+
+  const handleRead = () => {
+    if (!started) {
+      setStarted(true)
+      try {
+        // Mark isStarted in userBooks
+        const saved = JSON.parse(localStorage.getItem('userBooks') || '[]')
+        const idx = saved.findIndex(b => b.title === book.title && b.author === book.author)
+        if (idx !== -1) {
+          saved[idx].isStarted = true
+          localStorage.setItem('userBooks', JSON.stringify(saved))
+        }
+        // Also init readingProgress if not present
+        const rp = JSON.parse(localStorage.getItem('readingProgress') || '{}')
+        const bookId = `${book.title}::${book.author}`
+        if (!rp[bookId]) {
+          rp[bookId] = { currentPage: 0, totalPages: 1, totalChars: 0, percentage: 0, isStarted: true }
+          localStorage.setItem('readingProgress', JSON.stringify(rp))
+        }
+      } catch {}
+    }
+    if (onRead) onRead(book)
+  }
 
   return (
     <div className="detail-page">
@@ -40,6 +80,9 @@ export default function BookDetail({ book, onBack }) {
             <div className="detail-cover-wrapper">
               <img src={coverUrl} alt={book.title} className="detail-cover" />
             </div>
+            <button className="detail-continue-btn" onClick={handleRead}>
+              {started ? 'Продолжить чтение' : 'Читать'}
+            </button>
           </div>
 
         </div>
@@ -58,34 +101,28 @@ export default function BookDetail({ book, onBack }) {
           </div>
         </div>
 
-        <div className="detail-progress-section">
-          <div className="detail-progress-left">
-            <div className="detail-progress-label">Прогресс чтения</div>
-            <div className="detail-progress-sub">Продолжайте с того же места</div>
-          </div>
-          <div className="detail-progress-ring">
-            <div
-              className="detail-progress-ring-fill"
-              style={{
-                background: `conic-gradient(#3D8BFF ${pct}%, #e8ecf0 ${pct}%)`
-              }}
-            />
-            <div className="detail-progress-inner">
-              <span className="detail-progress-pct">{pct}%</span>
+        {started && (
+          <div className="detail-progress-section">
+            <div className="detail-progress-decoration-1"></div>
+            <div className="detail-progress-decoration-2"></div>
+            <div className="detail-progress-header">
+              <span className="detail-progress-label">Прогресс чтения</span>
+              <span className="detail-progress-value">{progressPct}%</span>
+            </div>
+            <div className="detail-progress-bar">
+              <div className="detail-progress-bar-fill" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
-        </div>
+        )}
 
         <div className="detail-description-card">
+          <div className="detail-description-decoration-1"></div>
+          <div className="detail-description-decoration-2"></div>
           <div className="detail-description-text">
             {book.description || 'Описание недоступно.'}
           </div>
         </div>
 
-      </div>
-
-      <div className="detail-bottom">
-        <button className="detail-continue-btn">Продолжить чтение</button>
       </div>
 
     </div>

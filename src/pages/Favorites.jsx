@@ -39,6 +39,19 @@ export default function Favorites({ onBookClick, activePage, onNavigate }) {
   return (
     <div className="fav-page">
 
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '3%', left: '6%', width: 110, transform: 'rotate(-20deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '2%', right: '10%', width: 85, transform: 'rotate(30deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '18%', left: '2%', width: 130, transform: 'rotate(-5deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '15%', right: '3%', width: 95, transform: 'rotate(50deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '35%', left: '12%', width: 120, transform: 'rotate(10deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '40%', right: '8%', width: 100, transform: 'rotate(-35deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '55%', left: '4%', width: 90, transform: 'rotate(25deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '58%', right: '15%', width: 115, transform: 'rotate(-15deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '75%', left: '18%', width: 105, transform: 'rotate(-40deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '78%', right: '5%', width: 80, transform: 'rotate(15deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '92%', left: '8%', width: 100, transform: 'rotate(5deg)' }} />
+      <img src="/assets/paw.png" alt="" className="fav-paw" style={{ top: '95%', right: '12%', width: 75, transform: 'rotate(-25deg)' }} />
+
       <div className="fav-hero">
 
         <div className="fav-hero-icon">
@@ -56,9 +69,7 @@ export default function Favorites({ onBookClick, activePage, onNavigate }) {
         {books.map((book, index) => (
           <div key={index} className="fav-card-wrap">
             <BookCard
-              cover={book.cover}
-              title={book.title}
-              author={book.author}
+              book={book}
               onClick={() => openSheet(book)}
             />
             <button
