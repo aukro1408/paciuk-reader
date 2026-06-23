@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { parseBook } from '../utils/BookParser'
+import { saveBook, getAllBooks } from '../utils/db'
 import '../styles/home.css'
 import SearchBar from '../components/SearchBar'
 import BookCard from '../components/BookCard'
@@ -67,6 +68,20 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
     return defaultBooks
   })
 
+  useEffect(() => {
+    console.log('[INDEXEDDB] LOADING BOOKS')
+    getAllBooks().then((indexedBooks) => {
+      if (indexedBooks && indexedBooks.length > 0) {
+        console.log('[INDEXEDDB] BOOKS FOUND:', indexedBooks.length)
+        setBooks(indexedBooks)
+      } else {
+        console.log('[INDEXEDDB] no books found — keeping localStorage/defaults')
+      }
+    }).catch((err) => {
+      console.error('[INDEXEDDB] load error:', err)
+    })
+  }, [])
+
   const handleRemoveBook = (book) => {
     console.log('')
     console.log('=== SHELF REMOVE DEBUG ===')
@@ -122,6 +137,18 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
         const fileName = fileArray[i].name
         if (s.status === 'fulfilled') {
           console.log('[FB2 PARSED] file:', fileName, '| title:', s.value.title, '| id:', s.value.id, '| cover:', !!s.value.cover)
+
+          const bookForDB = {
+            ...s.value,
+            currentPage: 0,
+            fileBlob: fileArray[i]
+          }
+          saveBook(bookForDB).then(() => {
+            console.log('[INDEXEDDB] BOOK SAVED — id:', bookForDB.id, '| title:', bookForDB.title)
+          }).catch(err => {
+            console.error('[INDEXEDDB] SAVE FAILED — id:', bookForDB.id, '| error:', err)
+          })
+
           imported.push(s.value)
         } else {
           console.error('[PARSE FAILED] file:', fileName, '| error:', s.reason?.message || s.reason)
