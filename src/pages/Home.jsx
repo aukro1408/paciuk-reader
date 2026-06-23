@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { parseBook } from '../utils/BookParser'
-import { saveBook, getAllBooks } from '../utils/db'
+import { saveBook, getAllBooks, deleteBook } from '../utils/db'
 import '../styles/home.css'
 import SearchBar from '../components/SearchBar'
 import BookCard from '../components/BookCard'
@@ -67,6 +67,8 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
     } catch {}
     return defaultBooks
   })
+  const [isImporting, setIsImporting] = useState(false)
+  const [inputKey, setInputKey] = useState(0)
 
   useEffect(() => {
     console.log('[INDEXEDDB] LOADING BOOKS')
@@ -82,11 +84,11 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
     })
   }, [])
 
-  const handleRemoveBook = (book) => {
+  const handleRemoveBook = async (book) => {
     console.log('')
     console.log('=== SHELF REMOVE DEBUG ===')
     console.log('BOOKS BEFORE:', JSON.stringify(books.map(b => ({ id: b.id, title: b.title }))))
-    console.log('SELECTED ID:', book?.id, '| SELECTED TITLE:', book?.title, '| book is:', typeof book, book === null ? 'null' : 'object')
+    console.log('SELECTED ID:', book?.id, '| SELECTED TITLE:', book?.title)
 
     if (!book || !book.id) {
       console.error('[SHELF REMOVE] book or book.id is missing — aborting')
@@ -96,12 +98,15 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
     const updated = books.filter(b => b.id !== book.id)
     console.log('FILTER RESULT — before:', books.length, 'after:', updated.length)
 
-    console.log('BOOKS AFTER:', JSON.stringify(updated.map(b => ({ id: b.id, title: b.title }))))
-    console.log('=== END SHELF REMOVE ===')
-    console.log('')
-
     setBooks(updated)
     localStorage.setItem('books', JSON.stringify(sanitizeForStorage(updated)))
+
+    try {
+      await deleteBook(book.id)
+      console.log('[INDEXEDDB DELETE SUCCESS] id:', book.id, '| title:', book.title)
+    } catch (err) {
+      console.error('[INDEXEDDB DELETE FAILED] id:', book.id, '| error:', err.message || err)
+    }
   }
 
   const handleDeleteBook = () => {
@@ -111,14 +116,31 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
   const fileInputRef = useRef(null)
 
   const handleFilePick = () => {
+    if (isImporting) {
+      console.log('[FAB] import in progress — ignoring click')
+      return
+    }
+    console.log('[FAB] opening file picker')
     fileInputRef.current?.click()
   }
 
   const handleFileChange = async (e) => {
+    console.log('[IMPORT START] handleFileChange fired | isImporting:', isImporting)
+
+    if (isImporting) {
+      console.warn('[IMPORT] already importing — skipping concurrent call')
+      return
+    }
+
+    setIsImporting(true)
+
     try {
-      console.log('[IMPORT START] handleFileChange fired')
-      const input = e.currentTarget
-      const files = input.files
+      const inputEl = fileInputRef.current
+      if (!inputEl) {
+        console.error('[IMPORT] input element not found')
+        return
+      }
+      const files = inputEl.files
       if (!files || files.length === 0) {
         console.log('[IMPORT START] no files selected — aborting')
         return
@@ -126,9 +148,7 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
       console.log('[FILE SELECTED] count:', files.length, '| names:', Array.from(files).map(f => f.name))
 
       const fileArray = Array.from(files)
-      console.log('[IMPORT] calling parseBook on', fileArray.length, 'files')
       const settled = await Promise.allSettled(fileArray.map(parseBook))
-      console.log('[IMPORT] allSettled complete — results:', settled.length)
 
       const imported = []
 
@@ -140,37 +160,61 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
 
           const bookForDB = {
             ...s.value,
-            currentPage: 0,
-            fileBlob: fileArray[i]
+            currentPage: 0
           }
-          saveBook(bookForDB).then(() => {
-            console.log('[INDEXEDDB] BOOK SAVED — id:', bookForDB.id, '| title:', bookForDB.title)
-          }).catch(err => {
-            console.error('[INDEXEDDB] SAVE FAILED — id:', bookForDB.id, '| error:', err)
-          })
+
+          try {
+            await saveBook(bookForDB)
+            console.log('[INDEXEDDB SAVE SUCCESS] id:', bookForDB.id, '| title:', bookForDB.title)
+          } catch (err) {
+            console.error('[INDEXEDDB SAVE FAILED] id:', bookForDB.id, '| error:', err.message || err)
+          }
 
           imported.push(s.value)
         } else {
-          console.error('[PARSE FAILED] file:', fileName, '| error:', s.reason?.message || s.reason)
+          console.error('[PARSE FAILED] file:', fileName, '| error:', s.reason?.reason || s.reason?.message || s.reason)
         }
       }
 
       if (imported.length) {
-        console.log('[BOOK ADDED] imported', imported.length, 'books — updating state')
-        setBooks(prev => {
-          const merged = [...imported, ...prev]
-          localStorage.setItem('books', JSON.stringify(sanitizeForStorage(merged)))
-          console.log('[BOOK ADDED] state updated — total books:', merged.length)
-          return merged
-        })
+        console.log('[BOOK ADDED] imported', imported.length, 'books — reloading from IndexedDB')
+
+        try {
+          const allBooks = await getAllBooks()
+          console.log('[TOTAL BOOKS] IndexedDB count:', allBooks ? allBooks.length : 0)
+          if (allBooks && allBooks.length) {
+            setBooks(allBooks)
+            localStorage.setItem('books', JSON.stringify(sanitizeForStorage(allBooks)))
+            console.log('[BOOK ADDED] state updated from IndexedDB — total books:', allBooks.length)
+          } else {
+            console.warn('[BOOK ADDED] getAllBooks returned empty — falling back to merge')
+            setBooks(prev => {
+              const merged = [...imported, ...prev]
+              localStorage.setItem('books', JSON.stringify(sanitizeForStorage(merged)))
+              return merged
+            })
+          }
+        } catch (reloadErr) {
+          console.error('[BOOK ADDED] getAllBooks failed:', reloadErr)
+          setBooks(prev => {
+            const merged = [...imported, ...prev]
+            localStorage.setItem('books', JSON.stringify(sanitizeForStorage(merged)))
+            return merged
+          })
+        }
       } else {
         console.warn('[BOOK ADDED] no books were successfully imported')
       }
 
-      input.value = ''
-      console.log('[IMPORT END]')
+      console.log('[IMPORT COMPLETE]')
     } catch (err) {
       console.error('[IMPORT CRASH] unhandled error:', err)
+    } finally {
+      setIsImporting(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = null
+      }
+      setInputKey(prev => prev + 1)
     }
   }
 
@@ -287,6 +331,7 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
       </div>
 
       <input
+        key={inputKey}
         ref={fileInputRef}
         type="file"
         accept=".fb2,.epub,.txt,.pdf"

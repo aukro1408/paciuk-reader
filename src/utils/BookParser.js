@@ -1,20 +1,11 @@
-function readText(file, encoding) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result)
-    r.onerror = () => reject(new Error('FileReader error: ' + (r.error?.message || 'unknown')))
-    r.readAsText(file, encoding)
-  })
+async function readText(blob) {
+  const text = await blob.text()
+  return text
 }
 
-// Read raw bytes as ArrayBuffer, then manually decode with a given encoding
-function readAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(r.result)
-    r.onerror = () => reject(new Error('FileReader error: ' + (r.error?.message || 'unknown')))
-    r.readAsArrayBuffer(file)
-  })
+async function readAsArrayBuffer(file) {
+  const buffer = await file.arrayBuffer()
+  return buffer
 }
 
 function decodeWindows1251(buffer) {
@@ -98,20 +89,18 @@ async function readFB2File(file) {
     return fullStr
   }
 
-  // Default: use TextDecoder or FileReader with UTF-8
+  // Default: use TextDecoder or blob.text() with UTF-8
   const blob = new Blob([buffer], { type: 'text/plain' })
-  return readText(blob, 'utf-8')
+  return readText(blob)
 }
 
 async function parseFB2(file) {
   console.log('>>> FB2 PARSER CALLED — file:', file.name)
 
-  // Read file content with encoding detection
   const raw = await readFB2File(file)
   console.log('[FB2] File size:', raw.length, 'bytes')
   console.log('[FB2] First 500 chars:', raw.substring(0, 500))
 
-  // Parse XML
   const cleaned = raw.replace(/<\?xml[^>]*\?>/i, '')
   let doc
   try {
@@ -123,14 +112,12 @@ async function parseFB2(file) {
   if (!doc) throw new Error('DOMParser returned null')
   console.log('[FB2] documentElement:', doc.documentElement?.tagName)
 
-  // Check for parser errors (Chrome/Firefox)
   const parseError = doc.querySelector('parsererror')
   if (parseError) {
     console.error('[FB2] XML parsererror:', parseError.textContent)
     throw new Error('XML parse error: ' + parseError.textContent)
   }
 
-  // Also check if documentElement is a parsererror (some browsers)
   if (doc.documentElement?.tagName?.toLowerCase() === 'parsererror') {
     const msg = doc.documentElement.textContent || 'unknown parse error'
     console.error('[FB2] documentElement is parsererror:', msg)
@@ -141,12 +128,10 @@ async function parseFB2(file) {
     throw new Error('XML document has no documentElement — empty or invalid file')
   }
 
-  // Try both getElementsByTagName and querySelector for description
   const desc = first(doc, 'description')
   console.log('[FB2] description found via getElementsByTagName:', !!desc)
 
   if (!desc) {
-    // Fallback: try querySelector with namespace
     const desc2 = doc.querySelector('description')
     console.log('[FB2] description found via querySelector:', !!desc2)
     if (!desc2) throw new Error('No <description> found in FB2 document')
@@ -156,8 +141,6 @@ async function parseFB2(file) {
   const info = first(desc, 'title-info')
   console.log('[FB2] title-info found:', !!info)
   if (!info) throw new Error('No <title-info> found in <description>')
-
-  // --- METADATA ---
 
   const title = text(info, 'book-title')
   console.log('[FB2] book-title:', JSON.stringify(title))
@@ -181,9 +164,7 @@ async function parseFB2(file) {
   }
   console.log('[FB2] description length:', description.length)
 
-  // --- BODY / CONTENT ---
   let content = ''
-  // Collect ALL <p> elements from the entire document (namespace-agnostic)
   let allP = []
   try {
     allP = Array.from(doc.querySelectorAll('p'))
@@ -192,13 +173,11 @@ async function parseFB2(file) {
     console.warn('[FB2] querySelectorAll failed:', e.message)
   }
   if (allP.length === 0) {
-    // Fallback: getElementsByTagName (works with default namespace XML)
     const fallback = doc.getElementsByTagName('p')
     console.log('[FB2] getElementsByTagName(p):', fallback.length)
     for (let i = 0; i < fallback.length; i++) allP.push(fallback[i])
   }
   if (allP.length === 0) {
-    // Fallback: getElementsByTagNameNS with wildcard namespace
     try {
       const ns = doc.getElementsByTagNameNS('*', 'p')
       console.log('[FB2] getElementsByTagNameNS(*,p):', ns.length)
@@ -219,8 +198,6 @@ async function parseFB2(file) {
   }
   content = parts.join('\n\n')
   console.log('[FB2] body content length:', content.length, '| paragraphs:', parts.length)
-
-  // --- COVER ---
 
   let cover = null
   const coverpage = first(info, 'coverpage')
@@ -243,7 +220,6 @@ async function parseFB2(file) {
         console.log('[FB2] binaries found:', binaries.length)
         for (const bin of binaries) {
           const id = bin.getAttribute('id') || ''
-          // Try exact match and match without extension
           if (id === href || id.replace(/\.\w+$/, '') === href.replace(/\.\w+$/, '')) {
             const ct = bin.getAttribute('content-type') || 'image/jpeg'
             const b64 = bin.textContent.replace(/\s/g, '')
@@ -287,7 +263,7 @@ async function parseEPUB(file) {
 
 async function parseTXT(file) {
   console.log('>>> TXT PARSER CALLED — file:', file.name)
-  const raw = await readText(file, 'utf-8')
+  const raw = await readText(file)
   const name = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')
   const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
   return {
