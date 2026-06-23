@@ -19,9 +19,25 @@
   border: 1px solid rgba(255,255,255,0.45);
 }
 
+.paw-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 28px;
+}
+
+.paw-print {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  filter: brightness(0.75);
+}
+
 .mascot-image {
   position: absolute;
-  top: -90px;
+  top: -73px;
   left: -50px;
   width: 300px;
   height: 250px;
@@ -43,14 +59,46 @@
 }
 
 .dashboard-title {
-  font-size: 26px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.logo-paciuk {
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg,
+    #111 0%, #111 30%,
+    #888 44%, #bbb 50%, #888 56%,
+    #111 70%, #111 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: logoShimmer 4s ease-in-out infinite;
+}
+
+.logo-reader {
+  font-size: 15px;
   font-weight: 700;
-  color: #1C1C1E;
+  letter-spacing: 0.3px;
+  background: linear-gradient(135deg, #58B6FF, #2F80ED);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes logoShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .dashboard-subtitle {
   font-size: 13px;
   color: #8A8A8A;
+  margin-left: 25px;
 }
 
 .search-wrapper {

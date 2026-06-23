@@ -36,11 +36,26 @@ const books = [
   }
 ]
 
-export default function Home({ onBookClick }) {
+export default function Home({ onBookClick, activePage, onNavigate }) {
   return (
     <div className="home-page">
 
       <div className="dashboard-card">
+
+        <div className="paw-container">
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'8%', left:'6%', width:'18px', opacity:'0.12', transform:'rotate(-15deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'4%', left:'52%', width:'16px', opacity:'0.10', transform:'rotate(25deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'14%', left:'80%', width:'14px', opacity:'0.13', transform:'rotate(-40deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'35%', left:'3%', width:'20px', opacity:'0.10', transform:'rotate(60deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'42%', left:'70%', width:'18px', opacity:'0.11', transform:'rotate(-5deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'60%', left:'15%', width:'16px', opacity:'0.14', transform:'rotate(35deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'55%', left:'85%', width:'15px', opacity:'0.12', transform:'rotate(-65deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'78%', left:'8%', width:'19px', opacity:'0.10', transform:'rotate(10deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'85%', left:'55%', width:'14px', opacity:'0.13', transform:'rotate(-25deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'50%', left:'42%', width:'12px', opacity:'0.11', transform:'rotate(80deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'22%', left:'35%', width:'13px', opacity:'0.10', transform:'rotate(-50deg)' }} />
+          <img src="/assets/paw.png" alt="" className="paw-print" style={{ top:'70%', left:'40%', width:'17px', opacity:'0.14', transform:'rotate(45deg)' }} />
+        </div>
 
         <img 
           src="/assets/paciuk.png" 
@@ -50,7 +65,8 @@ export default function Home({ onBookClick }) {
 
         <div className="dashboard-info">
           <span className="dashboard-title">
-            Paciuk Reader
+            <span className="logo-paciuk">Paciuk</span>
+            <span className="logo-reader">Reader</span>
           </span>
           <span className="dashboard-subtitle">
             6 книг • 2 читаются сейчас
@@ -132,7 +148,7 @@ export default function Home({ onBookClick }) {
 
       </div>
 
-      <BottomNav />
+      <BottomNav activePage={activePage} onNavigate={onNavigate} />
 
     </div>
   )
