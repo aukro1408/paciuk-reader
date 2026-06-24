@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
-const CHARS_PER_PAGE = 1800
+const WORDS_PER_PAGE = 250
 
 const styles = {
   page: {
-    height: '100vh',
+    height: '100dvh',
     overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
     background: '#fafafa'
   },
   header: {
@@ -18,9 +16,11 @@ const styles = {
     padding: '16px 20px',
     background: '#fff',
     borderBottom: '1px solid #eee',
-    position: 'sticky',
+    position: 'fixed',
     top: 0,
-    zIndex: 10,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     transition: 'transform 0.3s ease'
   },
   backBtn: {
@@ -40,19 +40,25 @@ const styles = {
     flex: 1
   },
   contentArea: {
-    flex: 1,
+    height: '100dvh',
     overflow: 'hidden',
-    padding: '24px 20px',
+    padding: '60px 20px 120px 20px',
     fontSize: '16px',
     lineHeight: 1.9,
     whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word'
+    wordBreak: 'break-word',
+    boxSizing: 'border-box'
   },
   bottomBar: {
     background: '#fff',
     borderTop: '1px solid #eee',
     padding: '12px 20px',
     paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     transition: 'transform 0.3s ease'
   },
   pageCounter: {
@@ -112,13 +118,13 @@ const styles = {
 
 export default function ReaderPage({ book, onBack }) {
   const text = book.content || ''
-  const totalChars = text.length
-  const totalPages = Math.max(1, Math.ceil(totalChars / CHARS_PER_PAGE))
+  const words = text.split(/\s+/)
+  const totalPages = Math.max(1, Math.ceil(words.length / WORDS_PER_PAGE))
 
-  // Generate pages
+  // Generate pages by word count
   const pages = []
-  for (let i = 0; i < totalPages; i++) {
-    pages.push(text.slice(i * CHARS_PER_PAGE, (i + 1) * CHARS_PER_PAGE))
+  for (let i = 0; i < words.length; i += WORDS_PER_PAGE) {
+    pages.push(words.slice(i, i + WORDS_PER_PAGE).join(' '))
   }
 
   const storageKey = 'readingProgress'
@@ -130,7 +136,7 @@ export default function ReaderPage({ book, onBack }) {
       const entry = saved[bookId]
       if (entry && typeof entry.currentPage === 'number') {
         // Validate saved page is within bounds
-        if (entry.currentPage >= 0 && entry.currentPage < Math.max(1, Math.ceil((book.content || '').length / CHARS_PER_PAGE))) {
+        if (entry.currentPage >= 0 && entry.currentPage < Math.max(1, Math.ceil((book.content || '').split(/\s+/).length / WORDS_PER_PAGE))) {
           return entry.currentPage
         }
       }
@@ -145,7 +151,7 @@ export default function ReaderPage({ book, onBack }) {
       saved[bookId] = {
         currentPage,
         totalPages,
-        totalChars,
+        totalWords: words.length,
         percentage,
         isStarted: true
       }
@@ -173,7 +179,7 @@ export default function ReaderPage({ book, onBack }) {
         }
       } catch {}
     } catch {}
-  }, [currentPage, totalPages, totalChars, bookId, book.title, book.author])
+  }, [currentPage, totalPages, words.length, bookId, book.title, book.author])
 
   // Save progress whenever page changes
   useEffect(() => {
