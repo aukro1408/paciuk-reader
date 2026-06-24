@@ -69,6 +69,7 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
   })
   const [isImporting, setIsImporting] = useState(false)
   const [inputKey, setInputKey] = useState(0)
+  const [activeBook, setActiveBook] = useState(null)
 
   useEffect(() => {
     console.log('[INDEXEDDB] LOADING BOOKS')
@@ -83,6 +84,36 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
       console.error('[INDEXEDDB] load error:', err)
     })
   }, [])
+
+  useEffect(() => {
+    try {
+      const lastOpened = JSON.parse(
+        localStorage.getItem('lastOpenedBook')
+      )
+
+      const progressData = JSON.parse(
+        localStorage.getItem('readingProgress') || '{}'
+      )
+
+      if (!lastOpened) return
+
+      const foundBook = books.find(
+        b =>
+          b.title === lastOpened.title &&
+          b.author === lastOpened.author
+      )
+
+      if (!foundBook) return
+
+      const key = `${foundBook.title}::${foundBook.author}`
+      const savedProgress = progressData[key]
+
+      setActiveBook({
+        ...foundBook,
+        progress: savedProgress?.percentage || 0
+      })
+    } catch {}
+  }, [books])
 
   const handleRemoveBook = async (book) => {
     console.log('')
@@ -218,7 +249,8 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
     }
   }
 
-  const readingCount = books.filter(b => b.isStarted).length
+  const readingProgress = JSON.parse(localStorage.getItem('readingProgress') || '{}')
+  const readingCount = Object.values(readingProgress).filter(item => item.isStarted === true).length
 
   return (
     <div className="home-page">
@@ -271,7 +303,7 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
 
           <div className="featured-cover">
             <img
-              src="https://covers.openlibrary.org/b/id/8259296-L.jpg"
+              src={activeBook ? activeBook.cover : "https://covers.openlibrary.org/b/id/8259296-L.jpg"}
               alt="book"
             />
           </div>
@@ -279,19 +311,19 @@ export default function Home({ onBookClick, activePage, onNavigate }) {
           <div className="featured-info">
 
             <span className="featured-title">
-              Мизери
+              {activeBook ? activeBook.title : 'Мизери'}
             </span>
 
             <span className="featured-author">
-              Стивен Кинг
+              {activeBook ? activeBook.author : 'Стивен Кинг'}
             </span>
 
             <span className="featured-progress-text">
-              42% прочитано
+              {activeBook ? `${activeBook.progress}% прочитано` : '42% прочитано'}
             </span>
 
             <div className="featured-progress">
-              <div className="featured-progress-fill"></div>
+              <div className="featured-progress-fill" style={activeBook ? { width: `${activeBook.progress}%` } : undefined}></div>
             </div>
 
             <button className="featured-button">

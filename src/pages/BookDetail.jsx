@@ -16,6 +16,7 @@ export default function BookDetail({ book, onBack, onRead }) {
   const rp = getReadingProgress(book)
   const [started, setStarted] = useState(rp ? rp.isStarted : (book.isStarted || false))
   const [progressPct, setProgressPct] = useState(rp ? rp.percentage : (book.progress || 0))
+  const [totalPages, setTotalPages] = useState(rp ? rp.totalPages : null)
 
   const coverUrl = book.cover?.replace('-M', '-L') || book.cover
 
@@ -24,6 +25,7 @@ export default function BookDetail({ book, onBack, onRead }) {
     if (rp) {
       setStarted(rp.isStarted)
       setProgressPct(rp.percentage)
+      setTotalPages(rp.totalPages)
     }
   }, [book])
 
@@ -97,7 +99,7 @@ export default function BookDetail({ book, onBack, onRead }) {
         <div className="detail-meta">
           <div className="detail-pill">
             <span>📖</span>
-            <span>{book.pages || '320'} стр</span>
+            <span>{totalPages || '--'} стр</span>
           </div>
         </div>
 

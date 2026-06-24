@@ -43,6 +43,18 @@ function App() {
       console.warn('[APP] CONTENT MISSING! Checking other fields...')
       console.log('[APP] fileContent available:', !!book.fileContent, '| fileContent length:', (book.fileContent || '').length)
     }
+
+    try {
+      localStorage.setItem(
+        'lastOpenedBook',
+        JSON.stringify({
+          id: book.id,
+          title: book.title,
+          author: book.author
+        })
+      )
+    } catch {}
+
     setSelectedBook(book)
     setPage('reader')
   }

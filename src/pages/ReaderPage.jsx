@@ -52,6 +52,9 @@ const styles = {
     wordBreak: 'break-word',
     boxSizing: 'border-box'
   },
+  pageAnimated: {
+    transition: 'transform 190ms ease-out, opacity 190ms ease-out'
+  },
   bottomBar: {
     background: '#fff',
     borderTop: '1px solid #eee',
@@ -98,6 +101,7 @@ export default function ReaderPage({ book, onBack }) {
   const [immersiveMode, setImmersiveMode] = useState(false)
   const [estimatedTotalPages, setEstimatedTotalPages] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
+  const [pageAnimation, setPageAnimation] = useState('')
 
   const storageKey = 'readingProgress'
   const bookId = `${book.title}::${book.author}`
@@ -134,39 +138,53 @@ export default function ReaderPage({ book, onBack }) {
   }, [book])
 
   const goNext = useCallback(() => {
-    setCurrentPage(prev => {
-      if (!prev || prev.end >= wordsRef.current.length) return prev
+    if (!currentPage || currentPage.end >= wordsRef.current.length) return
 
-      const nextStart = prev.end
-      let page = pageCache.current.get(nextStart)
+    setPageAnimation('next')
 
-      if (!page) {
-        page = calculatePageForward(wordsRef.current, nextStart, probeRef.current)
-        pageCache.current.set(page.start, page)
-        endToStart.current.set(page.end, page.start)
-      }
+    setTimeout(() => {
+      setCurrentPage(prev => {
+        if (!prev || prev.end >= wordsRef.current.length) return prev
 
-      return page
-    })
-  }, [])
+        const nextStart = prev.end
+        let page = pageCache.current.get(nextStart)
+
+        if (!page) {
+          page = calculatePageForward(wordsRef.current, nextStart, probeRef.current)
+          pageCache.current.set(page.start, page)
+          endToStart.current.set(page.end, page.start)
+        }
+
+        return page
+      })
+      setPageAnimation('')
+    }, 190)
+  }, [currentPage])
 
   const goPrev = useCallback(() => {
-    setCurrentPage(prev => {
-      if (!prev || prev.start <= 0) return prev
+    if (!currentPage || currentPage.start <= 0) return
 
-      const prevEnd = prev.start
-      const cachedStart = endToStart.current.get(prevEnd)
-      let page = cachedStart !== undefined ? pageCache.current.get(cachedStart) : null
+    setPageAnimation('prev')
 
-      if (!page) {
-        page = calculatePageBackward(wordsRef.current, prevEnd, probeRef.current)
-        pageCache.current.set(page.start, page)
-        endToStart.current.set(page.end, page.start)
-      }
+    setTimeout(() => {
+      setCurrentPage(prev => {
+        if (!prev || prev.start <= 0) return prev
 
-      return page
-    })
-  }, [])
+        const prevEnd = prev.start
+        const cachedStart = endToStart.current.get(prevEnd)
+        let page = cachedStart !== undefined ? pageCache.current.get(cachedStart) : null
+
+        if (!page) {
+          page = calculatePageBackward(wordsRef.current, prevEnd, probeRef.current)
+          pageCache.current.set(page.start, page)
+          endToStart.current.set(page.end, page.start)
+        }
+
+        return page
+      })
+      setPageAnimation('')
+    }, 190)
+  }, [currentPage])
 
   useEffect(() => {
     if (!currentPage) return
@@ -180,6 +198,7 @@ export default function ReaderPage({ book, onBack }) {
 
       saved[bookId] = {
         startWord: currentPage.start,
+        totalPages: estimatedTotalPages,
         percentage,
         isStarted: true
       }
@@ -242,7 +261,22 @@ export default function ReaderPage({ book, onBack }) {
         <h2 style={styles.title}>{book.title}</h2>
       </div>
 
-      <div ref={contentRef} style={styles.contentArea} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <div
+        ref={contentRef}
+        style={{
+          ...styles.contentArea,
+          ...styles.pageAnimated,
+          transform:
+            pageAnimation === 'next'
+              ? 'translateX(-35px) rotateY(-12deg)'
+              : pageAnimation === 'prev'
+              ? 'translateX(35px) rotateY(12deg)'
+              : 'translateX(0) rotateY(0)',
+          opacity: pageAnimation ? 0.75 : 1
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {currentPage ? wordsRef.current.slice(currentPage.start, currentPage.end).join(' ') : 'Пустая страница.'}
       </div>
 
