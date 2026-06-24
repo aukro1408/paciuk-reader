@@ -111,6 +111,14 @@ export default function ReaderPage({ book, onBack }) {
   const [fontSize, setFontSize] = useState(() => {
     return Number(localStorage.getItem('readerFontSize')) || 18
   })
+  const [theme, setTheme] = useState('light')
+
+  const themes = {
+    light: { bg: '#fafafa', text: '#222222', surface: '#ffffff' },
+    sepia: { bg: '#f4ecd8', text: '#4b3b2f', surface: '#efe4cb' },
+    dark: { bg: '#121212', text: '#d6d6d6', surface: '#1e1e1e' }
+  }
+  const currentTheme = themes[theme]
 
   const storageKey = 'readingProgress'
   const bookId = `${book.title}::${book.author}`
@@ -308,16 +316,16 @@ export default function ReaderPage({ book, onBack }) {
 
   if (isLoading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.header}>
+      <div style={{ ...styles.page, background: currentTheme.bg }}>
+        <div style={{ ...styles.header, background: currentTheme.surface }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
             <button style={styles.backBtn} onClick={onBack}>
               <ArrowLeft size={22} strokeWidth={2} />
             </button>
-            <h2 style={styles.title}>{book.title}</h2>
+            <h2 style={{ ...styles.title, color: currentTheme.text }}>{book.title}</h2>
           </div>
         </div>
-        <div style={{ ...styles.contentArea, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ ...styles.contentArea, display: 'flex', alignItems: 'center', justifyContent: 'center', background: currentTheme.bg, color: currentTheme.text }}>
           <span style={{ color: '#888', fontSize: '14px' }}>Загрузка...</span>
         </div>
       </div>
@@ -325,13 +333,13 @@ export default function ReaderPage({ book, onBack }) {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={{ ...styles.header, transform: immersiveMode ? 'translateY(-100%)' : 'translateY(0)' }}>
+    <div style={{ ...styles.page, background: currentTheme.bg }}>
+      <div style={{ ...styles.header, background: currentTheme.surface, transform: immersiveMode ? 'translateY(-100%)' : 'translateY(0)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
           <button style={styles.backBtn} onClick={onBack}>
             <ArrowLeft size={22} strokeWidth={2} />
           </button>
-          <h2 style={styles.title}>{book.title}</h2>
+          <h2 style={{ ...styles.title, color: currentTheme.text }}>{book.title}</h2>
         </div>
         <button
           onClick={(e) => {
@@ -344,7 +352,8 @@ export default function ReaderPage({ book, onBack }) {
             fontSize: '22px',
             fontWeight: '700',
             cursor: 'pointer',
-            padding: '4px 8px'
+            padding: '4px 8px',
+            color: currentTheme.text
           }}
         >
           A
@@ -357,11 +366,12 @@ export default function ReaderPage({ book, onBack }) {
           top: '70px',
           right: '16px',
           width: '260px',
-          background: '#ffffff',
+          background: currentTheme.surface,
           borderRadius: '18px',
           padding: '18px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-          zIndex: 100
+          zIndex: 100,
+          color: currentTheme.text
         }}>
           <div style={{ marginBottom: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>Font Size</span>
@@ -369,14 +379,15 @@ export default function ReaderPage({ book, onBack }) {
               <button
                 onClick={decreaseFont}
                 style={{
-                  background: '#f0f0f0',
+                  background: theme === 'dark' ? '#333' : '#f0f0f0',
                   border: 'none',
                   borderRadius: '8px',
                   width: '32px',
                   height: '32px',
                   fontSize: '18px',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: currentTheme.text
                 }}
               >
                 -
@@ -385,22 +396,45 @@ export default function ReaderPage({ book, onBack }) {
               <button
                 onClick={increaseFont}
                 style={{
-                  background: '#f0f0f0',
+                  background: theme === 'dark' ? '#333' : '#f0f0f0',
                   border: 'none',
                   borderRadius: '8px',
                   width: '32px',
                   height: '32px',
                   fontSize: '18px',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: currentTheme.text
                 }}
               >
                 +
               </button>
             </div>
           </div>
-          <div style={{ marginBottom: '12px', fontWeight: '600' }}>
+          <div style={{ fontWeight: '600', marginBottom: '8px' }}>
             Theme
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {['light', 'sepia', 'dark'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTheme(t)}
+                style={{
+                  flex: 1,
+                  padding: '8px 0',
+                  borderRadius: '10px',
+                  border: theme === t ? '2px solid #f0b432' : `2px solid ${currentTheme.text}22`,
+                  background: themes[t].bg,
+                  color: themes[t].text,
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize'
+                }}
+              >
+                {t}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -410,6 +444,8 @@ export default function ReaderPage({ book, onBack }) {
         style={{
           ...styles.contentArea,
           fontSize: `${fontSize}px`,
+          color: currentTheme.text,
+          background: currentTheme.bg,
           transition: isDragging
             ? 'none'
             : 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.3s ease',
@@ -429,12 +465,12 @@ export default function ReaderPage({ book, onBack }) {
         {currentPage ? wordsRef.current.slice(currentPage.start, currentPage.end).join(' ') : 'Пустая страница.'}
       </div>
 
-      <div style={{ ...styles.bottomBar, transform: immersiveMode ? 'translateY(100%)' : 'translateY(0)' }}>
+      <div style={{ ...styles.bottomBar, background: currentTheme.surface, transform: immersiveMode ? 'translateY(100%)' : 'translateY(0)' }}>
         <div style={styles.progressBar}>
           <div style={{ ...styles.progressFill, width: `${progressPct}%` }} />
         </div>
 
-        <div style={styles.pageCounter}>
+        <div style={{ ...styles.pageCounter, color: theme === 'dark' ? '#888' : '#888' }}>
           Страница {estimatedCurrentPage} из {estimatedTotalPages}
         </div>
       </div>
