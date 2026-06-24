@@ -11,6 +11,7 @@ const styles = {
   header: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: '10px',
     padding: '10px 16px',
     background: '#fff',
@@ -106,9 +107,43 @@ export default function ReaderPage({ book, onBack }) {
   const [isAnimating, setIsAnimating] = useState(false)
   const [dragX, setDragX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [fontSize, setFontSize] = useState(() => {
+    return Number(localStorage.getItem('readerFontSize')) || 18
+  })
 
   const storageKey = 'readingProgress'
   const bookId = `${book.title}::${book.author}`
+
+  const increaseFont = () => {
+    setFontSize(prev => Math.min(28, prev + 1))
+  }
+
+  const decreaseFont = () => {
+    setFontSize(prev => Math.max(14, prev - 1))
+  }
+
+  useEffect(() => {
+    localStorage.setItem('readerFontSize', fontSize)
+  }, [fontSize])
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        showSettings &&
+        settingsRef.current &&
+        !settingsRef.current.contains(event.target)
+      ) {
+        setShowSettings(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showSettings])
 
   useEffect(() => {
     const allWords = (book.content || '').split(/\s+/).filter(Boolean)
@@ -222,6 +257,7 @@ export default function ReaderPage({ book, onBack }) {
   }, [currentPage, bookId])
 
   const contentRef = useRef(null)
+  const settingsRef = useRef(null)
   const touchStartRef = useRef({ x: 0, y: 0 })
 
   const handleTouchStart = (e) => {
@@ -274,10 +310,12 @@ export default function ReaderPage({ book, onBack }) {
     return (
       <div style={styles.page}>
         <div style={styles.header}>
-          <button style={styles.backBtn} onClick={onBack}>
-            <ArrowLeft size={22} strokeWidth={2} />
-          </button>
-          <h2 style={styles.title}>{book.title}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+            <button style={styles.backBtn} onClick={onBack}>
+              <ArrowLeft size={22} strokeWidth={2} />
+            </button>
+            <h2 style={styles.title}>{book.title}</h2>
+          </div>
         </div>
         <div style={{ ...styles.contentArea, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: '#888', fontSize: '14px' }}>Загрузка...</span>
@@ -289,16 +327,89 @@ export default function ReaderPage({ book, onBack }) {
   return (
     <div style={styles.page}>
       <div style={{ ...styles.header, transform: immersiveMode ? 'translateY(-100%)' : 'translateY(0)' }}>
-        <button style={styles.backBtn} onClick={onBack}>
-          <ArrowLeft size={22} strokeWidth={2} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+          <button style={styles.backBtn} onClick={onBack}>
+            <ArrowLeft size={22} strokeWidth={2} />
+          </button>
+          <h2 style={styles.title}>{book.title}</h2>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowSettings(prev => !prev)
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '22px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            padding: '4px 8px'
+          }}
+        >
+          A
         </button>
-        <h2 style={styles.title}>{book.title}</h2>
       </div>
+
+      {showSettings && (
+        <div ref={settingsRef} onClick={(e) => e.stopPropagation()} style={{
+          position: 'fixed',
+          top: '70px',
+          right: '16px',
+          width: '260px',
+          background: '#ffffff',
+          borderRadius: '18px',
+          padding: '18px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+          zIndex: 100
+        }}>
+          <div style={{ marginBottom: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Font Size</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={decreaseFont}
+                style={{
+                  background: '#f0f0f0',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                -
+              </button>
+              <span style={{ minWidth: '40px', textAlign: 'center' }}>{fontSize}px</span>
+              <button
+                onClick={increaseFont}
+                style={{
+                  background: '#f0f0f0',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div style={{ marginBottom: '12px', fontWeight: '600' }}>
+            Theme
+          </div>
+        </div>
+      )}
 
       <div
         ref={contentRef}
         style={{
           ...styles.contentArea,
+          fontSize: `${fontSize}px`,
           transition: isDragging
             ? 'none'
             : 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.3s ease',
