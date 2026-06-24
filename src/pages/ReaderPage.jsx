@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
 
 const CHARS_PER_PAGE = 1800
 
 const styles = {
   page: {
-    minHeight: '100vh',
+    height: '100vh',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    background: '#fafafa',
-    paddingBottom: '120px'
+    background: '#fafafa'
   },
   header: {
     display: 'flex',
@@ -20,7 +20,8 @@ const styles = {
     borderBottom: '1px solid #eee',
     position: 'sticky',
     top: 0,
-    zIndex: 10
+    zIndex: 10,
+    transition: 'transform 0.3s ease'
   },
   backBtn: {
     background: 'none',
@@ -40,22 +41,19 @@ const styles = {
   },
   contentArea: {
     flex: 1,
+    overflow: 'hidden',
     padding: '24px 20px',
     fontSize: '16px',
     lineHeight: 1.9,
     whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    overflowY: 'auto'
+    wordBreak: 'break-word'
   },
   bottomBar: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
     background: '#fff',
     borderTop: '1px solid #eee',
     padding: '12px 20px',
-    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))'
+    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+    transition: 'transform 0.3s ease'
   },
   pageCounter: {
     textAlign: 'center',
@@ -182,6 +180,37 @@ export default function ReaderPage({ book, onBack }) {
     saveProgress()
   }, [currentPage, saveProgress])
 
+  useEffect(() => {
+    console.log("CONTENT HEIGHT:", contentRef.current.clientHeight)
+  })
+
+  useEffect(() => {
+    const words = text.split(/\s+/).slice(0, 500)
+    if (words.length === 0) return
+
+    const el = document.createElement('div')
+    el.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      width: ${contentRef.current.clientWidth}px;
+      font-size: 16px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+    `
+    document.body.appendChild(el)
+
+    let fitCount = 0
+    for (let i = 0; i < words.length; i++) {
+      el.textContent = words.slice(0, i + 1).join(' ')
+      if (el.scrollHeight > 686) break
+      fitCount = i + 1
+    }
+
+    console.log("WORDS FIT:", fitCount)
+    document.body.removeChild(el)
+  }, [])
+
   const goPrev = () => {
     setCurrentPage(p => Math.max(0, p - 1))
   }
@@ -190,22 +219,44 @@ export default function ReaderPage({ book, onBack }) {
     setCurrentPage(p => Math.min(totalPages - 1, p + 1))
   }
 
+  const contentRef = useRef(null)
+
+  const [touchStartX, setTouchStartX] = useState(0)
+  const [immersiveMode, setImmersiveMode] = useState(false)
+
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.touches[0].clientX)
+  }
+
+  const handleTouchEnd = (e) => {
+    const diff = touchStartX - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        goNext()
+      } else {
+        goPrev()
+      }
+    } else if (Math.abs(diff) < 10) {
+      setImmersiveMode(prev => !prev)
+    }
+  }
+
   const progressPct = totalPages > 1 ? ((currentPage + 1) / totalPages) * 100 : 100
 
   return (
     <div style={styles.page}>
-      <div style={styles.header}>
+      <div style={{ ...styles.header, transform: immersiveMode ? 'translateY(-100%)' : 'translateY(0)' }}>
         <button style={styles.backBtn} onClick={onBack}>
           <ArrowLeft size={22} strokeWidth={2} />
         </button>
         <h2 style={styles.title}>{book.title}</h2>
       </div>
 
-      <div style={styles.contentArea}>
+      <div ref={contentRef} style={styles.contentArea} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {pages[currentPage] || 'Пустая страница.'}
       </div>
 
-      <div style={styles.bottomBar}>
+      <div style={{ ...styles.bottomBar, transform: immersiveMode ? 'translateY(100%)' : 'translateY(0)' }}>
         <div style={styles.progressBar}>
           <div style={{ ...styles.progressFill, width: `${progressPct}%` }} />
         </div>
