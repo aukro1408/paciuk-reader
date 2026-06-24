@@ -102,6 +102,10 @@ export default function ReaderPage({ book, onBack }) {
   const [estimatedTotalPages, setEstimatedTotalPages] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const [pageAnimation, setPageAnimation] = useState('')
+  const [animDirection, setAnimDirection] = useState(null)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [dragX, setDragX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
 
   const storageKey = 'readingProgress'
   const bookId = `${book.title}::${book.author}`
@@ -139,8 +143,11 @@ export default function ReaderPage({ book, onBack }) {
 
   const goNext = useCallback(() => {
     if (!currentPage || currentPage.end >= wordsRef.current.length) return
+    if (isAnimating) return
 
+    setAnimDirection('left')
     setPageAnimation('next')
+    setIsAnimating(true)
 
     setTimeout(() => {
       setCurrentPage(prev => {
@@ -158,13 +165,18 @@ export default function ReaderPage({ book, onBack }) {
         return page
       })
       setPageAnimation('')
-    }, 190)
-  }, [currentPage])
+      setIsAnimating(false)
+      setAnimDirection(null)
+    }, 300)
+  }, [currentPage, isAnimating])
 
   const goPrev = useCallback(() => {
     if (!currentPage || currentPage.start <= 0) return
+    if (isAnimating) return
 
+    setAnimDirection('right')
     setPageAnimation('prev')
+    setIsAnimating(true)
 
     setTimeout(() => {
       setCurrentPage(prev => {
@@ -183,8 +195,10 @@ export default function ReaderPage({ book, onBack }) {
         return page
       })
       setPageAnimation('')
-    }, 190)
-  }, [currentPage])
+      setIsAnimating(false)
+      setAnimDirection(null)
+    }, 300)
+  }, [currentPage, isAnimating])
 
   useEffect(() => {
     if (!currentPage) return
@@ -208,21 +222,41 @@ export default function ReaderPage({ book, onBack }) {
   }, [currentPage, bookId])
 
   const contentRef = useRef(null)
-  const [touchStartX, setTouchStartX] = useState(0)
+  const touchStartRef = useRef({ x: 0, y: 0 })
 
   const handleTouchStart = (e) => {
-    setTouchStartX(e.touches[0].clientX)
+    if (isAnimating) return
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    setIsDragging(true)
+    setDragX(0)
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || isAnimating) return
+    const dx = e.touches[0].clientX - touchStartRef.current.x
+    const dy = e.touches[0].clientY - touchStartRef.current.y
+    if (Math.abs(dx) > Math.abs(dy)) {
+      e.preventDefault()
+      setDragX(dx)
+    }
   }
 
   const handleTouchEnd = (e) => {
-    const diff = touchStartX - e.changedTouches[0].clientX
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) {
+    if (isAnimating) { setIsDragging(false); setDragX(0); return }
+
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+
+    setIsDragging(false)
+    setDragX(0)
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx < -50) {
         goNext()
-      } else {
+      } else if (dx > 50) {
         goPrev()
       }
-    } else if (Math.abs(diff) < 10) {
+    } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
       setImmersiveMode(prev => !prev)
     }
   }
@@ -265,16 +299,20 @@ export default function ReaderPage({ book, onBack }) {
         ref={contentRef}
         style={{
           ...styles.contentArea,
-          ...styles.pageAnimated,
-          transform:
-            pageAnimation === 'next'
-              ? 'translateX(-35px) rotateY(-12deg)'
-              : pageAnimation === 'prev'
-              ? 'translateX(35px) rotateY(12deg)'
-              : 'translateX(0) rotateY(0)',
-          opacity: pageAnimation ? 0.75 : 1
+          transition: isDragging
+            ? 'none'
+            : 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.3s ease',
+          transform: isAnimating
+            ? animDirection === 'left'
+              ? 'translateX(-40px) scale(0.97)'
+              : 'translateX(40px) scale(0.97)'
+            : isDragging
+            ? `translateX(${dragX * 0.3}px)`
+            : 'translateX(0) scale(1)',
+          opacity: isAnimating ? 0 : 1
         }}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {currentPage ? wordsRef.current.slice(currentPage.start, currentPage.end).join(' ') : 'Пустая страница.'}
