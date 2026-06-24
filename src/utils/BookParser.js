@@ -67,6 +67,26 @@ function all(parent, tag) {
   return Array.from(parent.getElementsByTagName(tag))
 }
 
+function extractText(node, parts = []) {
+  for (const child of node.childNodes) {
+    if (child.nodeType === 1) {
+      const tag = child.tagName.toLowerCase()
+
+      if (tag === 'p') {
+        const txt = child.textContent
+          .replace(/\s+/g, ' ')
+          .trim()
+
+        if (txt) parts.push(txt)
+      }
+
+      extractText(child, parts)
+    }
+  }
+
+  return parts
+}
+
 async function readFB2File(file) {
   const buffer = await readAsArrayBuffer(file)
   // Try UTF-8 first by reading the first few bytes to check for BOM or valid UTF-8
@@ -164,40 +184,13 @@ async function parseFB2(file) {
   }
   console.log('[FB2] description length:', description.length)
 
-  let content = ''
-  let allP = []
-  try {
-    allP = Array.from(doc.querySelectorAll('p'))
-    console.log('[FB2] querySelectorAll(p):', allP.length)
-  } catch (e) {
-    console.warn('[FB2] querySelectorAll failed:', e.message)
-  }
-  if (allP.length === 0) {
-    const fallback = doc.getElementsByTagName('p')
-    console.log('[FB2] getElementsByTagName(p):', fallback.length)
-    for (let i = 0; i < fallback.length; i++) allP.push(fallback[i])
-  }
-  if (allP.length === 0) {
-    try {
-      const ns = doc.getElementsByTagNameNS('*', 'p')
-      console.log('[FB2] getElementsByTagNameNS(*,p):', ns.length)
-      for (let i = 0; i < ns.length; i++) allP.push(ns[i])
-    } catch (e) {
-      console.warn('[FB2] getElementsByTagNameNS failed:', e.message)
-    }
-  }
-  console.log('[FB2] total <p> elements:', allP.length)
-  if (allP.length > 0) {
-    const firstP = allP[0]
-    console.log('[FB2] first <p> sample:', firstP.textContent.replace(/\s+/g, ' ').trim().substring(0, 100))
-  }
-  const parts = []
-  for (const p of allP) {
-    const t = p.textContent.replace(/\s+/g, ' ').trim()
-    if (t) parts.push(t)
-  }
-  content = parts.join('\n\n')
-  console.log('[FB2] body content length:', content.length, '| paragraphs:', parts.length)
+  const body = doc.getElementsByTagName('body')[0]
+  if (!body) throw new Error('No <body> tag found in FB2 document')
+
+  const parts = extractText(body)
+  const content = parts.join('\n\n')
+
+  console.log('[FB2 DEBUG]', content.substring(0, 5000))
 
   let cover = null
   const coverpage = first(info, 'coverpage')

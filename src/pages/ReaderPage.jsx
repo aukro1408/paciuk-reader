@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft } from 'lucide-react'
-
-const WORDS_PER_PAGE = 250
+import { createProbe, destroyProbe, calculatePageForward, calculatePageBackward } from '../utils/getVisiblePage'
 
 const styles = {
   page: {
@@ -40,9 +39,13 @@ const styles = {
     flex: 1
   },
   contentArea: {
-    height: '100dvh',
+    position: 'fixed',
+    top: '60px',
+    bottom: '100px',
+    left: 0,
+    right: 0,
     overflow: 'hidden',
-    padding: '60px 20px 120px 20px',
+    padding: '0 20px',
     fontSize: '16px',
     lineHeight: 1.9,
     whiteSpace: 'pre-wrap',
@@ -117,118 +120,107 @@ const styles = {
 }
 
 export default function ReaderPage({ book, onBack }) {
-  const text = book.content || ''
-  const words = text.split(/\s+/)
-  const totalPages = Math.max(1, Math.ceil(words.length / WORDS_PER_PAGE))
+  const wordsRef = useRef([])
+  const probeRef = useRef(null)
+  const pageCache = useRef(new Map())
+  const endToStart = useRef(new Map())
 
-  // Generate pages by word count
-  const pages = []
-  for (let i = 0; i < words.length; i += WORDS_PER_PAGE) {
-    pages.push(words.slice(i, i + WORDS_PER_PAGE).join(' '))
-  }
+  const [currentPage, setCurrentPage] = useState(null)
+  const [immersiveMode, setImmersiveMode] = useState(false)
+  const [estimatedTotalPages, setEstimatedTotalPages] = useState(1)
+  const [isLoading, setIsLoading] = useState(true)
 
   const storageKey = 'readingProgress'
   const bookId = `${book.title}::${book.author}`
 
-  const [currentPage, setCurrentPage] = useState(() => {
+  useEffect(() => {
+    const allWords = (book.content || '').split(/\s+/).filter(Boolean)
+    wordsRef.current = allWords
+
+    const containerWidth = window.innerWidth - 40
+    const containerHeight = window.innerHeight - 180
+    probeRef.current = createProbe(containerWidth, containerHeight, 16, 1.9)
+
+    let startWord = 0
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || '{}')
       const entry = saved[bookId]
-      if (entry && typeof entry.currentPage === 'number') {
-        // Validate saved page is within bounds
-        if (entry.currentPage >= 0 && entry.currentPage < Math.max(1, Math.ceil((book.content || '').split(/\s+/).length / WORDS_PER_PAGE))) {
-          return entry.currentPage
-        }
+      if (entry?.startWord >= 0 && entry.startWord < allWords.length) {
+        startWord = entry.startWord
       }
     } catch {}
-    return 0
-  })
 
-  const saveProgress = useCallback(() => {
+    const page = calculatePageForward(allWords, startWord, probeRef.current)
+    pageCache.current.set(page.start, page)
+    endToStart.current.set(page.end, page.start)
+
+    setCurrentPage(page)
+    const wordsOnPage = page.end - page.start || 1
+    setEstimatedTotalPages(Math.ceil(allWords.length / wordsOnPage))
+    setIsLoading(false)
+
+    return () => {
+      destroyProbe(probeRef.current)
+    }
+  }, [book])
+
+  const goNext = useCallback(() => {
+    setCurrentPage(prev => {
+      if (!prev || prev.end >= wordsRef.current.length) return prev
+
+      const nextStart = prev.end
+      let page = pageCache.current.get(nextStart)
+
+      if (!page) {
+        page = calculatePageForward(wordsRef.current, nextStart, probeRef.current)
+        pageCache.current.set(page.start, page)
+        endToStart.current.set(page.end, page.start)
+      }
+
+      return page
+    })
+  }, [])
+
+  const goPrev = useCallback(() => {
+    setCurrentPage(prev => {
+      if (!prev || prev.start <= 0) return prev
+
+      const prevEnd = prev.start
+      const cachedStart = endToStart.current.get(prevEnd)
+      let page = cachedStart !== undefined ? pageCache.current.get(cachedStart) : null
+
+      if (!page) {
+        page = calculatePageBackward(wordsRef.current, prevEnd, probeRef.current)
+        pageCache.current.set(page.start, page)
+        endToStart.current.set(page.end, page.start)
+      }
+
+      return page
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!currentPage) return
+
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || '{}')
-      const percentage = totalPages > 1 ? Math.round(((currentPage + 1) / totalPages) * 100) : (currentPage >= 0 ? 100 : 0)
+      const totalWords = wordsRef.current.length
+      const percentage = totalWords > 0
+        ? Math.round((currentPage.end / totalWords) * 100)
+        : 0
+
       saved[bookId] = {
-        currentPage,
-        totalPages,
-        totalWords: words.length,
+        startWord: currentPage.start,
         percentage,
         isStarted: true
       }
+
       localStorage.setItem(storageKey, JSON.stringify(saved))
-
-      // Also update isStarted in userBooks
-      try {
-        const userBooks = JSON.parse(localStorage.getItem('userBooks') || '[]')
-        let changed = false
-        for (let i = 0; i < userBooks.length; i++) {
-          if (userBooks[i].title === book.title && userBooks[i].author === book.author) {
-            if (!userBooks[i].isStarted) {
-              userBooks[i].isStarted = true
-              changed = true
-            }
-            if (userBooks[i].progress !== percentage) {
-              userBooks[i].progress = percentage
-              changed = true
-            }
-            break
-          }
-        }
-        if (changed) {
-          localStorage.setItem('userBooks', JSON.stringify(userBooks))
-        }
-      } catch {}
     } catch {}
-  }, [currentPage, totalPages, words.length, bookId, book.title, book.author])
-
-  // Save progress whenever page changes
-  useEffect(() => {
-    saveProgress()
-  }, [currentPage, saveProgress])
-
-  useEffect(() => {
-    console.log("CONTENT HEIGHT:", contentRef.current.clientHeight)
-  })
-
-  useEffect(() => {
-    const words = text.split(/\s+/).slice(0, 500)
-    if (words.length === 0) return
-
-    const el = document.createElement('div')
-    el.style.cssText = `
-      position: absolute;
-      visibility: hidden;
-      pointer-events: none;
-      width: ${contentRef.current.clientWidth}px;
-      font-size: 16px;
-      line-height: 1.9;
-      white-space: pre-wrap;
-    `
-    document.body.appendChild(el)
-
-    let fitCount = 0
-    for (let i = 0; i < words.length; i++) {
-      el.textContent = words.slice(0, i + 1).join(' ')
-      if (el.scrollHeight > 686) break
-      fitCount = i + 1
-    }
-
-    console.log("WORDS FIT:", fitCount)
-    document.body.removeChild(el)
-  }, [])
-
-  const goPrev = () => {
-    setCurrentPage(p => Math.max(0, p - 1))
-  }
-
-  const goNext = () => {
-    setCurrentPage(p => Math.min(totalPages - 1, p + 1))
-  }
+  }, [currentPage, bookId])
 
   const contentRef = useRef(null)
-
   const [touchStartX, setTouchStartX] = useState(0)
-  const [immersiveMode, setImmersiveMode] = useState(false)
 
   const handleTouchStart = (e) => {
     setTouchStartX(e.touches[0].clientX)
@@ -247,7 +239,30 @@ export default function ReaderPage({ book, onBack }) {
     }
   }
 
-  const progressPct = totalPages > 1 ? ((currentPage + 1) / totalPages) * 100 : 100
+  const totalWords = wordsRef.current.length
+  const progressPct = totalWords > 0 && currentPage
+    ? Math.round((currentPage.end / totalWords) * 100)
+    : 0
+
+  const estimatedCurrentPage = currentPage && totalWords > 0
+    ? Math.floor(currentPage.start / (totalWords / estimatedTotalPages)) + 1
+    : 1
+
+  if (isLoading) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.header}>
+          <button style={styles.backBtn} onClick={onBack}>
+            <ArrowLeft size={22} strokeWidth={2} />
+          </button>
+          <h2 style={styles.title}>{book.title}</h2>
+        </div>
+        <div style={{ ...styles.contentArea, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ color: '#888', fontSize: '14px' }}>Загрузка...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={styles.page}>
@@ -259,7 +274,7 @@ export default function ReaderPage({ book, onBack }) {
       </div>
 
       <div ref={contentRef} style={styles.contentArea} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        {pages[currentPage] || 'Пустая страница.'}
+        {currentPage ? wordsRef.current.slice(currentPage.start, currentPage.end).join(' ') : 'Пустая страница.'}
       </div>
 
       <div style={{ ...styles.bottomBar, transform: immersiveMode ? 'translateY(100%)' : 'translateY(0)' }}>
@@ -268,21 +283,21 @@ export default function ReaderPage({ book, onBack }) {
         </div>
 
         <div style={styles.pageCounter}>
-          Страница {currentPage + 1} из {totalPages}
+          Страница {estimatedCurrentPage} из {estimatedTotalPages}
         </div>
 
         <div style={styles.navRow}>
           <button
-            style={currentPage === 0 ? styles.navBtnDisabled : styles.navBtn}
+            style={!currentPage || currentPage.start === 0 ? styles.navBtnDisabled : styles.navBtn}
             onClick={goPrev}
-            disabled={currentPage === 0}
+            disabled={!currentPage || currentPage.start === 0}
           >
             ← Назад
           </button>
           <button
-            style={currentPage >= totalPages - 1 ? styles.navBtnDisabled : styles.navBtn}
+            style={!currentPage || currentPage.end >= totalWords ? styles.navBtnDisabled : styles.navBtn}
             onClick={goNext}
-            disabled={currentPage >= totalPages - 1}
+            disabled={!currentPage || currentPage.end >= totalWords}
           >
             Вперед →
           </button>
